@@ -1,0 +1,229 @@
+---
+title: "MSBA 6440 Group Project "
+author: "Group 12: Garett Carlblom, Ryan McKiernan, Varun Gupta"
+date: "05/06/2022"
+output: pdf_document
+---
+
+# Executive Summary
+Retail companies are constantly trying to maximize their revenues and sell as much of their products as they can. One of the largest challenges that these companies face is how much awareness in the population exists about their products. A popular way to gather awareness is through the creation and distribution of advertisements. Almost all retail companies have some sort of advertising campaign, but a lot of companies begin to wonder if these campaigns are truly effective or not. Luckily through the power of causal inference, an analysis can be done to show if an advertisement campaign is effective and to what degree of an effect there is. It can also be helpful for retail companies to understand when it would be the best time to advertise their products. As a result of our analysis, we have determined that the marketing campaign was successful and that the test group was 44% more likely to purchase than the control group. We also found that with each additional ad seen by an individual, it increased the odds of purchasing by .047%. Showing the most ads on Tuesday led to a 99% increase in converting compared to Thursday, and showing the most ads from midnight to 6 am led to a 648% increase in converting compared to the evening. 
+
+
+# Business Background
+The analysis in this report uses a generic ad campaign data set from Kaggle.com, where the data was taken over an unknown time frame. Because we did not know any information on a specific business for the data set, our team treated the business as a generic retail company running a marketing campaign for their products. 
+
+
+# Business Questions
+Our report set out to answer the following questions, the importance of each question is also noted below. 
+
+* Does advertising have an effect on purchasing behavior?
+  + Importance: It is useful for a business to know if their marketing campaign is leading to a wanted outcome, or if they are just wasting money on the marketing. 
+    
+* How much of an impact does advertising have?
+  + Importance: If the marketing campaign is effective to the company, the company would likely want to understand how effective the marketing campaign has been, if the campaign only lead to a small increase in sales, the benefits may not outweigh the costs. 
+    
+* What is the effect of showing a user more ads?
+  + Importance: The business would to know if showing an individual a lot of ads would possibly lead to a higher probability of purchase. 
+    
+* What is the best time of day, and day of the week to show ads?
+  + Importance: Knowing the best time to show more advertisements could lead to strategic timing of advertisements to increase potential revenue to the company. 
+    
+* Is our experiment powerful enough?
+  + Importance: The business would also like to know if the experiment they have conducted is powerful enough for our analysis, as if it lacks power it might not be able to reliably detect certain effects.
+    
+
+
+# Data Set Overview
+The data set provided has 588K rows. The unit of observation is whether an individual was shown an advertisement for a product or a public service announcement. For each individual, there is a number of ‘total ads’ field. This field will be the dependent variable in our analysis. The outcome variable in the data is whether or not the individual 'converted' and bought the product. The other features in the data set show the time of day that the most advertisements were shown, and which day were the most advertisements shown for each individual. 
+
+
+
+
+### Importing data
+```{r, message = FALSE, warning = FALSE, results='hide'}
+library(dplyr)
+library(ggplot2)
+library(MatchIt)
+library(gridExtra)
+
+#market = read.csv("marketing_AB.csv")
+market = read.csv('C:/Users/garet/OneDrive/Documents/R_studio_projects/marketing_AB.csv')
+```
+
+
+Converting categorical variables to numeric
+```{r, message = FALSE, warning = FALSE, results='hide'}
+market = market %>% mutate(converted_0 = ifelse(converted == 'False',0,1))
+market = market %>% mutate(test = ifelse(test.group == 'psa',0,1))
+market
+```
+
+
+
+## Distribution of Variables
+
+```{r, message = FALSE, warning = FALSE}
+hist(log(market$total.ads))
+```
+
+```{r, message = FALSE, warning = FALSE}
+market_group = market %>% group_by(most.ads.day) %>% summarise(count = n())
+ggplot(market_group, aes(x = reorder(most.ads.day, -count), y = count)) + geom_bar(stat='identity')  + 
+  theme_bw() + labs(title="Distribution of Ads on Days", x="Day of Week", y="Count of Ads")
+```
+
+
+```{r, message = FALSE, warning = FALSE}
+hist(market$most.ads.hour)
+```
+
+
+Distribution of users in control and test groups
+```{r, message = FALSE, warning = FALSE}
+options(scipen=999)
+market_group = market %>% group_by(test.group, converted) %>% summarise(count = n())
+ggplot(market_group, aes(x = test.group, y = count, fill = factor(converted))) + geom_bar(stat='identity')   + 
+  theme_bw() + labs(title="Number of Users in Control and Test groups", x="Control/Test", y="Count of Users", fill='Converted')
+options(scipen=0)
+```
+
+Distribution of users in control and test groups in table form
+```{r, message = FALSE, warning = FALSE}
+market_group
+```
+
+
+
+# Analysis of Business Questions
+
+### Assumptions of the analysis
+In our analysis, the key assumption that we made is that our experiment was done randomly, with each member of the control and treatment group assigned completely at random. A truly random experiment is able to eliminate all forms of endogeneity and leave our analysis with robust findings. This also assumes that correlation and temporal precedence will hold, in order for causality to be achieved.
+
+
+
+##  Is online advertising effective?
+To perform the analysis for this question, our group used a t-test to compare the number of conversions between the testing and control groups. A t-test is a statistical approach that tells you if there is a significant difference between the means of the groups. The output of the t-test is a p-value that we can use to determine the significance. Normally, a P-value of .05 is a good indicator of significance. In our t-test we arrived at a value that is less than 2e^-16, with such a low value we can safely say that the advertisement has an effect on purchasing behavior. 
+```{r, message = FALSE, warning = FALSE}
+# T test analysis
+t.test(data=market, converted_0 ~ test)
+```
+
+
+
+## How much of an impact does advertising have?
+To answer this question our team used logistic regression to measure the impact. Logistic regression is a statistical model that can be used to determine the causal relationship between a dependent variable and one or more independent variables. In this analysis we used the 'conversion' variable as the independent variable and the 'testing' variable as the dependent variable. In our analysis we determined that the test group was 44% more likely to purchase the product compared to the control group, and that this value is significant with a P-value of 2.3e-13. 
+```{r, message = FALSE, warning = FALSE}
+# Logistic Regression analysis
+logit = glm(converted_0 ~ test, data=market, family = 'binomial')
+summary(logit)
+
+# Percent increase
+cat((exp(coef(logit)[2])-1)* 100, '% increase')
+```
+
+
+
+## What is the effect of showing a user more ads?
+Using logistic regression we used the 'conversion' variable as the independent variable and the 'testing' and 'total number of ads' variables as the dependent variables. Here we discovered that for each additional advertisement watched by an individual, it led to a .047% increase in conversion. This is a very low percentage, and the P-value of .368 that accompanies it also signifies that this analysis is likely not significant.
+
+```{r, message = FALSE, warning = FALSE}
+# Logistic Regression analysis
+logit = glm(converted_0 ~ test + total.ads + test*total.ads, data=market, family = 'binomial')
+summary(logit)
+
+# Percent increase
+cat((exp(coef(logit)[4])-1)* 100, '% increase')
+
+```
+
+
+
+### Outliers in the model
+One thing to note in this analysis is that there are some extreme outliers in the data set for the Total Ads variable. In our Logistic Regression model we made an assumption that there would be no extreme outliers. An attempt was made to remove these outliers but after the analysis, we found that after removing the outliers only 24,000 of the data set's 588,000 observations would remain so our team decided to leave the outliers in place.
+```{r, message = FALSE, warning = FALSE, results='hide'}
+# implementation help from: https://www.reneshbedre.com/blog/find-outliers.html
+
+# new variable that excludes extreme outliers
+market_no_outlier = market
+
+# Summary to get 3rd quartile
+summary(market_no_outlier$total.ads)
+
+# To get IQR
+IQR(market_no_outlier$total.ads)
+
+# get threshold values for outliers
+#Tmin = 7-(1.5*5.5) 
+extreme_max = 27+(3*23) 
+
+# find outliers
+market_no_outlier[market_no_outlier$total.ads > extreme_max,]
+```
+
+
+
+## What is the day of the week to show ads?
+To perform this analysis we used logistic regression, with the 'conversion' variable as the independent variable and the 'testing' and 'most ads per day' variables as the dependent variables. In this analysis we found that the lowest increase of conversion happened on Thursday, so we set this as the benchmark. In the result of our analysis we found that showing the most ads to an individual on Tuesday lead to a 99% increase in converting compared to having the most ads show on Thursday. 
+```{r, message = FALSE, warning = FALSE}
+# Logistic Regression analysis
+market2 <- within(market, most.ads.day <- relevel(factor(most.ads.day), ref = 'Thursday'))
+logit = glm(converted_0 ~ test + most.ads.day + test*most.ads.day , data=market2, family = 'binomial')
+summary(logit)
+
+# Percent increase
+cat((exp(coef(logit)[13])-1)* 100, '% increase')
+```
+
+
+## What is the best time of day to show ads?
+Before beginning our analysis, we first grouped the data in the data set into reasonable hour segments; early morning from midnight to 6 AM, morning from 6 AM to 12 PM, afternoon from 12 PM to 6 PM, and evening from 6 PM to midnight. Similar to the previous section, we had to set a benchmark for the time period that lead to the lowest increase in conversion, which was the evening. To perform our analysis we used logistic regression, with the 'conversion' variable as the independent variable and the 'testing' and 'most ads/hour' variables as the dependent variables. In the analysis we found that showing the most ads from midnight to 6 am led to a 648% increase in converting compared to the evening.
+
+```{r, message = FALSE, warning = FALSE, results='hide'}
+market= market %>% mutate(time_cat = ifelse(most.ads.hour >=  0 & most.ads.hour < 6, 'early_morning', ifelse(most.ads.hour >= 6 & most.ads.hour < 12,'morning',ifelse(most.ads.hour >=  12 & most.ads.hour < 18,'afternoon','evening'))))
+```
+
+
+Running the Analysis
+```{r, message = FALSE, warning = FALSE}
+# Logistic Regression analysis
+market3 <- within(market, time_cat <- relevel(factor(time_cat), ref = 'evening'))
+logit = glm(converted_0 ~ test + time_cat + test*time_cat , data=market3, family = 'binomial')
+summary(logit)
+
+# Percent increase
+cat((exp(coef(logit)[7])-1)* 100, '% increase')
+```
+
+
+
+
+
+# Is our experiment powerful enough?
+With the control group having 23,524 members, we are able to predict up to a 97.5% increase in conversions in the experiment. This amount should be high enough for almost any business context.
+```{r, message = FALSE, warning = FALSE}
+power.t.test(n = 23524, sig.level = .05, power = .8)
+```
+
+
+
+# Limitations 
+
+Limitations to our methodology stem from the ambiguity of the data. Since little is known about the ads in the data set, it's unknown if this has a potential impact on user conversion in the experiment. This means that ad profitability cannot be factored into the analysis, making the effectiveness of ads based more so on user engagement. Additionally, since user backgrounds are unknown, this leaves out another factor that may be influencing the impact of ads. In order to address these problems in the future, it would be necessary to collect data on user backgrounds and specific ad details, so that these components can be meaningfully considered in the analysis.
+
+As mentioned at the beginning of the analysis, our key assumption for our work was that our experiment was random, where each member was placed in their groups at random. Unfortunately due to the lack of specifics of this data set we do not know how this experiment was set up. This experiment could have been random and could have been set up with some bias. This lack of knowledge in randomization is a key limitation of our analysis. 
+
+As stated in the "What is the effect of showing a user more ads?" one of the key assumptions we made for the logistic regression model is that there is no extreme outliers in the the model. Unfortunately, trying to remove these outliers led to removing most of the observations of the dataset, which substantially hurted our power. So our team decided to leave the outliers in, leading to another limitation that can account for error that is present. If we are able to design an expirement that gets either enough data that isn't deemed an outlier or puts a limit on the number of ads that a person can see, then it would help to resolve this issue. We could determine this cutoff by examining the probability of a purchase based on the number of ads seen, and look for a threshold where the margins start to flatten out.
+
+
+# Threats to Causality
+
+One notable threat to causality in the data is that the test and control groups have an imbalanced size ratio, as only 4% of users in the data saw the control group PSA. This could provide a risk of selection bias, since the distribution of total ads seen is skewed heavily to the right with notable outliers also present. Aspects of these problems are likely due to the design of the data set's original experiment, which intentionally placed the majority of users into the test group, while only a small portion would be assigned to the control. The experiment would likely need to be redone with a more balanced and representative group size to significantly mitigate these threats.
+
+In terms of simultaneity bias, it is not believed that this would be an issue with our experiment, as a feedback loop seems unlikely given that it would be unlikely a customer would re-watch an ad after purchasing a product. Purchasing the product could lead to a user being shown more ads for it, but we should still be able to isolate what portion of the observed association is due to an ads effect on the purchase. Omitted variable bias may be of concern here, however. While an ad can play a significant role in 'converting' potential customers, there are other factors that could come into play, such as one's income level. For instance, someone might be in a tight money situation but recently got a raise so they can now purchase the product, regardless of being shown the ad. Other variables may factor into this as well, and while ads could very well be the driving factor in getting a 'conversion', there may be these threats to consider.
+
+Additionally, a concern that may arise could come in the form of a response bias. Depending on what the advertisement/PSA is for, there could be an issue with social desirability bias or demand effects if the product in question is 'trendy' and affordable for most of the people in the experiment, as this has the potential, although not guaranteed, to alter people's behaviors. This has the potential to be an issue especially with the public service announcement since often times, PSA's can provide persuasive messages. While this isn't seen as a huge limitation, the possibility of it exists given the unknowns our of product, even if we are to assume it comes from a retail company.
+
+# Appendix 
+Link the dataset on Kaggle: https://www.kaggle.com/datasets/faviovaz/marketing-ab-testing
+
+

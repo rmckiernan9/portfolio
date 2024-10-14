@@ -1,0 +1,230 @@
+---
+title: "MSBA 6440 Homework 2"
+author: "Garett Carlblom, Ryan McKiernan, Varun Gupta"
+date: "04/14/2022"
+output: pdf_document
+---
+
+
+# Executive Summary
+
+#### The Bazaar company uses ad platforms to advertise their products. These advertisements are categorized as either sponsored ads or organic ads. The sponsored ads cost Bazaar money but the Bazaar link will show up first when someone searches for a product and includes the "Bazaar" keyword. There is some debate in Bazaar on the effectiveness of these sponsored ads. Fortunately a natural experiment has occured with one of the ad platforms used by Bazaar, the google platform incured a glitch and no sponsored ads were displayed past week 9. With this natural experiment our team will conduct an analysis to determine the effectiveness and ROI of the sponsored ads. Our report will answer the following 5 questions:
+
+
+####  1. What is Wrong with Bob’s RoI Calculation? 
+####  One aspect that could show faultiness in the RoI conversion is what users would do if the sponsored ads were not present. If a user searches for an item with 'Bazaar' in the search, the user is likely looking for a link to the Bazaar page for that item and would likely click on a Bazaar link that was not sponsored. If a user is looking to buy an item from Bazaar but chooses to click the sponsor ad out of convenience, this gives the impression that the sponsored ad is what drove the user to the site and not because of the ad itself. If the users would travel to Bazaar without the sponsored ad, this leads to a cost to Bazaar that might not be necessary. 
+
+####  2. Define the Treatment and Control
+####  The treatment event for this case is when the glitch occurred on the Google platform and Bazaar no longer had any sponsored ads shown on Google, starting in week 10. The treatment group will be the total average visits for the Google traffic and the Control group synthetic control that was created from the Ask, Yahoo, and Bing platforms. A synthetic control was necessary due to none of the other platforms being similar in trends to the Google platform. This synthetic control could be viewed as what how the Google platform would have performed if the platform did not occur the glitch. 
+
+####  3. Consider a First Difference Estimate 
+####  In our analysis we found that there will be a 22% decline in total average viewers for the Google platform after the treatment affect. 
+
+####  4. Calculate the Difference-in-Differences
+####  In our analysis we found that there will be a 81% decline in total average viewers for the Google platform after the treatment affect compared to the Synthetic control.
+
+####  5. Given Your Treatment Effect Estimate, Fix Bob’s RoI Calculation
+####  If we examine Bob's ROI approach, we see that he takes the ((margin per conversion*purchase probability)-cost per click)/cost per click. But as we noted above, there is a flaw with this thinking in that this may include sponsored ads which are easier to click on given the word bazaar being present. In this case, the numbers on the ROI might be a little over-inflated. In order to fix Bob's ROI calculation, we will need to take advantage of the fact that Google's sponsored ad campaign was down for 3 weeks, which is important information. By comparing the difference between sponsored ads and running the calculations below, we find that the actual ROI is approximately 209%, down from the 320% that Bob calculated.
+
+
+
+## Importing data
+```{r message = FALSE, warning = FALSE}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(plm)
+library(dplyr)
+library(ggplot2)
+library(glmnet)
+library(janitor)
+library(Synth)
+library(ggthemes)
+library(patchwork)
+library(tidyr)
+
+ads = read.csv("did_sponsored_ads.csv")
+```
+
+
+## Data initialization
+
+```{r pressure, echo=FALSE}
+ads = ads %>% mutate(after= ifelse(week > 9,1,0))
+ads = ads %>% mutate(all_visits = avg_spons + avg_org)
+google = ads %>% filter(platform == 'goog')
+```
+
+
+# Question 2. Define the Treatment and Control
+The following graph shows the trends for Google and the other ad platforms, after looking at this graph is when our team decided to create a synthetic control, as to not break the parallel trends assumption. 
+
+```{r message = FALSE, warning = FALSE}
+ggplot(ads, aes(y=all_visits, x= week, color=factor(platform))) +  geom_line() + 
+  geom_vline(xintercept = 9, linetype='dotted') + 
+  ylim(0, 20000)  + 
+  theme_bw() + labs(title="All Visits for Ad Platforms", x=" Weeks", y="Average Organic Ads",col='Ad Platform')
+```
+
+### Creating Synthetic Control
+
+```{r message = FALSE, warning = FALSE}
+### Synthetic Control
+
+# First we pivot the data from long to wide, to use other districts' time series as predictors.
+ads.wide = ads %>% pivot_wider(id_cols=c("week"),names_from=c("platform"),values_from="all_visits")
+ads.wide.train = subset(ads.wide, week< 10)
+
+ads.wide.train_mm <- model.matrix(`goog`~., ads.wide.train)
+lasso <- cv.glmnet(ads.wide.train_mm, ads.wide.train$`goog`, standardize=TRUE,alpha=1,nfolds=5)
+ests <- as.matrix(coef(lasso,lasso$lambda.1se))
+
+
+names(ests[ests!=0,])
+
+# We can use the resulting control platforms s to create our 'synthetic control'. 
+fml.rhs <- paste(c(names(ests[ests!=0,]))[2:length(names(ests[ests!=0,]))],collapse="+")
+fml <- as.formula(paste("`goog`~",fml.rhs))
+synth <- lm(data=ads.wide.train,formula=fml)
+
+# Last, we can synthesize the resulting control series into the post treatment period. 
+ads.wide$synth <- predict(synth,newdata = ads.wide)
+```
+
+
+
+## Google and Synthetic Control Graph
+In the code below we have graphed the treatment and control groups. The red line indicates the treatment effect of the Google platform glitch. One assumption that later analysis will depend upon is the parallel trends assumption, meaning that the treatment and control groups need to be moving in a parallel pattern before the treatment effect. Looking at this graph we can see that the two groups were nearly identical before the treatment, thereby not breaking our parallel trends assumption.  
+
+```{r message = FALSE, warning = FALSE}
+OLS_plot <- ggplot(data=ads.wide, aes(y=synth,x=week,linetype="dashed")) + geom_line() + 
+  geom_line(aes(y=goog,x=week,linetype="solid")) +
+  geom_vline(xintercept=9,color="red") + 
+  xlab(expression(bold(paste("Week")))) +  
+  ylab(expression(bold(paste("Platform Visits")))) + 
+  scale_linetype_manual(name="Series",values=c("dashed","solid"),labels=c("Synth","Google"))+
+  ggtitle("All Visits for Ad Platforms") +
+  theme_economist() +
+  theme(text = element_text(family = "Economica", size = 10), axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
+
+
+OLS_plot
+
+```
+
+
+### Converting back to original dataframe format
+```{r message = FALSE, warning = FALSE}
+ads.wide$yahoo = NULL
+ads.wide$bing = NULL
+ads.wide$ask = NULL
+ad_final = pivot_longer(ads.wide, cols=c('synth','goog'), names_to = "platform", values_to = "all_visits")
+ad_final = ad_final %>% mutate(after= ifelse(week > 9,1,0))
+```
+
+
+
+### Distribution of data
+Looking at the below histogram we can see that the data is not skewed in either left or right direction. 
+```{r message = FALSE, warning = FALSE}
+hist(ad_final$all_visits)
+```
+
+
+
+# Question 3. Consider a First Difference Estimate
+Looking at the first difference estimate we can see that Bazaar lost 1846 total average viewers after the treatment effect. According to the linear regression model we return a P value of .58 indicating that this loss in visits is not statistically significant from the before visits.  
+Looking at a change function for these numbers we will show a 22% decline in total average viewers after the treatment affect. 
+But this is not the only calculation that should be looked at. This calculation only takes into account the visits to Google and does not take into account trends in the ad space. 
+```{r message = FALSE, warning = FALSE}
+# does not account for trends in the market 
+google = ads %>% filter(platform == 'goog')
+summary(lm(all_visits ~  after , data=google))
+
+# Change
+((8390 - 1846) - 8389.889) / 8389.889
+```
+
+## Showing the average visits before and after treatment
+```{r message = FALSE, warning = FALSE}
+ad_final %>% group_by(platform, after) %>% summarise(average_visits = mean(all_visits))
+```
+
+
+## Question 4
+After running a regression we can see that synthetic control had 15200 more visits on their platform as compared to Google due to the experiment. In other words if the Google ad platform did not have the glitch, Bazaar would have had 15200 more visits to their site. This results leads to a P-value of 0.00338, with a normal cut off at .05 this result is statistically significant. 
+These results show the problems with relying just on the post-estimator. Looking at just the post estimator we would show only a small decrease in visits, but taking account the difference in differences we can show that Google platform lost a large amount of visits due to the treatment. 
+
+There will be a 81% decline in total average viewers for the Google platform after the treatment affect compared to the Synthetic control. 
+
+
+```{r message = FALSE, warning = FALSE}
+options(scipen=999)
+options(digits=6)
+
+#ad_final2 <- within(ad_final, platform <- relevel(factor(platform), ref = 'synth'))
+#model = lm(all_visits ~ platform + after + platform *after, data=ad_final2)
+#summary(model)
+
+ad_final2 <- within(ad_final, platform <- relevel(factor(platform), ref = 'goog'))
+summary(lm(all_visits ~ platform + after + platform *after, data=ad_final2))
+
+# Change function 
+cat(((8390 - 15200.7) / 8390) * 100, '%')
+
+options(scipen=0)
+
+```
+
+
+
+
+## Question 5 (e)	Given Your Treatment Effect Estimate, Fix Bob’s RoI Calculation. Throw out Bob’s RoI calculation. Come up with your own, alternative calculation, based on your estimated treatment effect.
+
+
+```{r message = FALSE, warning = FALSE}
+#To get a true ROI number, we need to find the difference between organic and sponsored ads for Google.
+
+avg_sp_19 = 12681 / 9
+avg_sp_1012 = 0 #No sponsored ads during this time due to the glitch
+avg_org_19 = 4334 / 9
+avg_org_1012 = (6889-4334) / 3
+
+#Combining the values for months 1-9 and months 10-12, we have:
+avg_traffic_19 = avg_sp_19 + avg_org_19
+avg_traffic_1012 = avg_sp_1012 + avg_org_1012
+
+#Getting the difference in traffic volume:
+avg_traffic_diff = avg_traffic_19 - avg_traffic_1012
+
+#From here, we can get the probability of making a purchase off the website:
+prob_purchase = avg_traffic_diff*0.12
+
+#Then we get the revenue made off of each click:
+rev_click = prob_purchase*21
+
+#We'll also need the cost of each click from the sponsored ads, taking the average.
+cost_click = avg_sp_19*0.6
+
+#We can then got our actual ROI value by using (revenue-cost)/cost as a percentage.
+roi = ((rev_click-cost_click)/cost_click)*100
+roi
+```
+
+
+
+```{r message = FALSE, warning = FALSE}
+# could look a the amount of business lost
+# should have gone up by 8065, but it went down by 1845.9
+# the treatment lead to a loss of 9911 visits
+# need to show thus increases the ROI
+# the second question eludes to the ROI not being as significant, but it should actually be much more. 
+cat((((8390 - 9911) - 8390) / 8390) * 100, '%') 
+
+
+```
+
+
+  
+  
+  

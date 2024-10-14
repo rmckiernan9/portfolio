@@ -1,0 +1,140 @@
+---
+title: "MSBA 6440 Homework 1 "
+author: "Garett Carlblom, Ryan McKiernan, Varun Gupta"
+date: "2022/3/14"
+output: pdf_document
+---
+
+# Executive summary
+#### Star digital would like to discover how effective an ad campaign is. To discover this the company has run a test campaign where some users are given advertisements to Star Digital's products and others are others are given Public Service Announcements. Star Digital has taken a sample of their campaign for our team to analyze to see if the experiment had any impact on purchases. Star Digital has asked our team to answer 3 different questions. 
+####  1. Is online advertising effective for Star Digital? 
+####  In our analysis, we found that purchases between the test and control groups were not different and that the online advertising was not effective for Star Digital, with the advertisements only leading to an 7.98% increase in the test group compared to the control group. 
+####  2. Does increasing the frequency of advertising increase the probability of a purchase? 
+####  After running an analysis on all the advertisements run on each individual, we found that for each increase in one thousand ad impressions the probability of a purchase increases by 1.56% for test group compared to the control group. 
+####  3. Should Star Digital put its advertising dollars in sites 1-5 or site 6? 
+####  In our analysis we found that there is 3.27% increase in purchases when ads are shown on sites 1 through 5 and only a 1.45% increase when ads are show on site 6.
+
+
+
+# Initial Data Description and Analysis
+
+### Importing data
+```{r message = FALSE, warning = FALSE}
+library(dplyr)
+library(ggplot2)
+library(MatchIt)
+library(gridExtra)
+
+star = read.csv("star_data.xls")
+```
+
+
+### Summary of the data
+According to the summary the variables, most of the impression sites have a median of 0 and low value for mean, with the highest being 3.4. Looking at this summary we can see that the impression sites are all rightly skewed. 
+```{r message = FALSE, warning = FALSE}
+summary(star)
+```
+
+
+### Distributions of the ad views for each site
+Looking at the distribution of the advertisement views for each site, we saw that there are clear outliers present based on the dotplots below.  
+```{r message = FALSE, warning = FALSE}
+g1 = star %>% ggplot(aes(x = "frequency",y=imp_1)) + geom_dotplot(binaxis='y',stackdir='center', binwidth = 1) + labs(title="Ad Views for Site 1", x=" Frequency", y="Number of Ads")
+g2 = star %>% ggplot(aes(x = "frequency",y=imp_2)) + geom_dotplot(binaxis='y',stackdir='center', binwidth = 1) + labs(title="Ad Views for Site 2", x=" Frequency", y="Number of Ads")
+g3 = star %>% ggplot(aes(x = "frequency",y=imp_3)) + geom_dotplot(binaxis='y',stackdir='center', binwidth = 1) + labs(title="Ad Views for Site 3", x=" Frequency", y="Number of Ads")
+g4 = star %>% ggplot(aes(x = "frequency",y=imp_4)) + geom_dotplot(binaxis='y',stackdir='center', binwidth = 1) + labs(title="Ad Views for Site 4", x=" Frequency", y="Number of Ads")
+g5 = star %>% ggplot(aes(x = "frequency",y=imp_5)) + geom_dotplot(binaxis='y',stackdir='center', binwidth = 1) + labs(title="Ad Views for Site 5", x=" Frequency", y="Number of Ads")
+g6 = star %>% ggplot(aes(x = "frequency",y=imp_6)) + geom_dotplot(binaxis='y',stackdir='center', binwidth = 1) + labs(title="Ad Views for Site 5", x=" Frequency", y="Number of Ads")
+grid.arrange(g1, g2, g3,g4,g5,g6, ncol=3, nrow=2)
+```
+
+
+
+### Checking how powerful our experiment is.
+With the control group having a 2656 members, we are able to predict up to a 93% increase in purchases in the experiment. This amount is high enough for our experiment.
+```{r message = FALSE, warning = FALSE}
+power.t.test(n = 2656, sig.level = .1, power = .8)
+```
+
+
+# Business Questions
+
+## Question 1: Is online advertising effective for Star Digital?
+Our team used a statistical model to answer this question. First our group set out to see if the test and control groups were statistically different from each other in terms of purchases. After running our model we found that the two groups were not different meaning that the online advertising was not effective for Star Digital.
+```{r message = FALSE, warning = FALSE}
+# T test analysis. P-Value is greater than .05
+t.test(data=star, purchase ~ test)
+```
+
+To understand further why these groups are similar, another output from our modelling showed that the advertisements only led to an 8% increase in the test group compared to the control group. 
+```{r message = FALSE, warning = FALSE}
+# Logistic regression analysis 
+star_logit = glm(purchase ~ test, star, family = 'binomial')
+summary(star_logit)
+
+# Percent Increase 
+cat((exp(coef(star_logit)[2])-1)*100, '% increase')
+```
+
+### Recommendation for Question 1:
+Looking at these results Star Digital should stop advertising their products on these sites. 
+
+
+
+
+## Question 2: Is there a frequency effect of advertising on purchases?
+
+To determine whether or not the frequency of ads would have an affect on purchases, we first combined all of the advertisements by site to get all of the ads shown to each person. 
+```{r message = FALSE, warning = FALSE}
+# New data set with all sites combined into a new field
+star2 = star %>% mutate(all_channels = imp_1 + imp_2 + imp_3 + imp_4 + imp_5 + imp_6)
+```
+
+
+In our analysis, we found that for each increase in one thousand ad impressions the probability of a purchase increased by 1.56% for test group compared to the control group.
+```{r message = FALSE, warning = FALSE}
+# Logistic Regression analysis
+star_logit = glm(purchase ~ test + all_channels + test*all_channels, data=star2, family = 'binomial')
+summary(star_logit)
+
+# Percent increase
+cat((exp(coef(star_logit)[4])-1)*100, '% increase')
+```
+
+### Recommendation for Question 2:
+If Star Digital still wants to continue advertising they should try to increase the amount of advertisements that each customer sees, with more ads seen by a customer the more likely they will be to purchase a product. 
+
+
+## Question 3: Which sites should star digital advertise on?
+
+To determine whether Star Digital should focus their advertisements on channels 1-5 or Channel 6 we first combined the first 5 channels in the data set. 
+```{r message = FALSE, warning = FALSE}
+# New data set with sites 1-5 combined into a new field
+star_1_5 = star %>% mutate(sites_1_5 = imp_1 + imp_2 + imp_3 + imp_4 + imp_5)
+```
+
+After running an analysis on purchases and sites 1-5 and site 6 we found that there is 3.27% increase in purchases when ads are shown on sites 1 through 5 and only a 1.45% increase when ads are show on site 6.
+```{r message = FALSE, warning = FALSE}
+star_logit = glm(purchase ~ sites_1_5 + imp_6, star_1_5, family = 'binomial')
+summary(star_logit)
+
+# Percent Increases
+cat('Channel 1-5 leads to a',(exp(coef(star_logit)[2])-1)*100, '% increase','\n')
+cat('Channel 6 leads to a',(exp(coef(star_logit)[3])-1)*100, '% increase')
+```
+
+
+### Recommendation for Question 3:
+Star digital should send their advertisements on sites 1 - 5 rather than on site 6. In our analysis we found that sites 1 - 5 (3.27% increase) together had an increase more than twice than the increase of site 6 (1.45% increase), and only has a cost of 25% more than site 6 per one thousand impressions.
+
+
+
+# Potential problems:
+The testing control group is done at a 90:10 percent split, in an ideal scenario we would want the testing and control groups to be of the same size. 
+
+Only 0.153% of the actual population actually purchased the product, whereas in our data about half of the people purchased it. 
+
+
+
+
+
