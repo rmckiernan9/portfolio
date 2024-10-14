@@ -1,0 +1,135 @@
+---
+title: "MSBA 6451 HW1"
+author: "Ryan McKiernan"
+date: "7/19/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lpSolve)
+```
+
+## Question 1
+
+Product 1=a, Product 2=b, Product 3=c, Product 4=d
+
+Goal is to maximize profit while adhering to the various constraints for the 4 
+products, which includes machine hours/assembly time, contract requirements, 
+and government regulations.
+
+Max(6a + 4b + 6c + 8d) s.t.
+
+3a + 2b + 2c + 4d <= 480 (machine constraint),
+
+a + b + 2c + 3d <= 400 (polish constraint),
+
+2a + b + 2c + d <= 400 (assemble constraint),
+
+a >= 50, b + c >= 100 (distributor constraints), d <= 25 (government constraint)
+
+```{r}
+obj_fun1 = c(6,4,6,8)
+constr_lhs = matrix(c(3,2,2,4,1,1,2,3,2,1,2,1,1,0,0,0,0,1,1,0,0,0,0,1),
+                    ncol=4,byrow=TRUE)
+constr_dir = c("<=","<=","<=",">=",">=","<=")
+constr_rhs = c(480,400,400,50,100,25)
+
+solution1 = lp("max",obj_fun1,constr_lhs,constr_dir,constr_rhs)
+solution1
+solution1$solution
+```
+
+Solution: a=50 units, b=0 units, c=145 units, d=10 units, profit = $1,250
+
+
+## Question 2
+
+h=burgers, p=patties, m=meatloaf, r=round steak, c=chuck steak, k=pork
+
+With this problem, we need to use up as many pounds of meat in order to minimize
+the storage amount. This means maximizing the amount of product made in which
+the objective function is created by adding up the percentages across the
+products. From there the constraints are made up of the limits to how much meat
+we have and how much is needed for each product, ignoring the inexpensive
+nonmeat filler.
+
+Max(0.7h + 0.7p + 0.8m) s.t.
+
+0.2h + 0.1m <= 200 (round steak),
+
+0.5h + 0.5p + 0.4m <= 800 (chuck steak),
+
+0.2p + 0.3m <= 150 (pork),
+
+h,p,m >= 0
+
+
+```{r}
+obj_fun2 = c(.7,.7,.8)
+constr_lhs2 = matrix(c(.2,0,.1,.5,.5,.4,0,.2,.3,1,0,0,0,1,0,0,0,1)
+                     ,ncol=3,byrow=TRUE)
+constr_dir2 = c("<=","<=","<=",">=",">=",">=")
+constr_rhs2 = c(200,800,150,0,0,0)
+
+solution2 = lp("max",obj_fun2,constr_lhs2,constr_dir2,constr_rhs2)
+solution2
+solution2$solution
+```
+
+Solution: h = 937.5lbs, p = 562.5lbs, m = 125lbs where all the meat is used
+and there is none left over.
+
+
+## Question 3
+
+r=regular, p=premium, d=domestic, f=foreign
+
+For this problem, we need to break up the two categories into the 4 possible
+combinations that are possible for selling gas. The objective function, which
+is based in profit, can be created from (selling price – cost). The numbers for
+vapor pressure and octane rating are obtained from 
+(vapor pressure-max vapor pressure) and (octane rating – min octane rating).
+The rest of the constraints are obtained from the numbers provided in the tables
+
+Max(4rd -3rf + 6pd -pf) 	s.t. 
+
+2rd – 8rf <= 0 (regular vapor pressure),
+
+2pd – 8pf <= 0 (premium vapor pressure),
+
+-rd + 10rf >= 0 (regular octane rating),
+
+-6pd + 5pf >= 0 (premium octane rating),
+
+Rd + rf <= 100,000 (max demand regular),
+
+Pd + pf <= 20,000 (max demand premium),
+
+Rd + rf >= 50,000 (min delivery regular),
+
+Pd + pf >= 5,000 (min delivery premium),
+
+Rd + pd <= 40,000 (domestic inventory),
+
+Rf + pf <= 60,000 (foreign inventory),
+
+Rd,rf,pd,pf >= 0
+
+```{r}
+obj_fun3 = c(4,-3,6,-1)
+constr_lhs3 = matrix(c(2,-8,0,0,0,0,2,-8,-1,10,0,0
+                      ,0,0,-6,5,1,1,0,0,0,0,1,1
+                      ,1,1,0,0,0,0,1,1,1,0,1,0
+                      ,0,1,0,1,1,0,0,0,0,1,0,0
+                      ,0,0,1,0,0,0,0,1),ncol=4,byrow=TRUE)
+constr_dir3 = c("<=","<=",">=",">=","<=","<=",">=",">=","<=",
+                "<=",">=",">=",">=",">=")
+constr_rhs3 = c(0,0,0,0,100000,20000,50000,5000,40000,60000,0,0,0,0)
+
+solution3 = lp("max",obj_fun3,constr_lhs3,constr_dir3,constr_rhs3)
+solution3
+solution3$solution
+```
+
+Solution: rd=40,000 , rf=10,000 , pd=0 , pf=5,000 , weekly profit = $125,000

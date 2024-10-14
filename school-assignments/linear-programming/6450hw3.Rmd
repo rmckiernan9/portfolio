@@ -1,0 +1,112 @@
+---
+title: "MSBA6451 HW3"
+author: "Ryan McKiernan"
+date: "8/11/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Question 1
+
+```{r}
+set.seed(124345)
+
+U=runif(10000)
+X= (-1*(log(U)))**(0.5) #Inverse transformation which is -ln(u)^(1/shape)
+
+set.seed(124345)
+Y = rweibull(2000,shape=2,scale=1)
+
+plot(density(X), xlim=c(0,3), ylim=c(0,1) ,main="",xlab=NA)
+par(new = TRUE)
+plot(density(Y), xlim=c(0,3), ylim=c(0,1) ,main="",xlab=NA)
+
+```
+
+
+## Question 2
+
+```{r}
+set.seed(123456)
+U = runif(3*10000)
+U = matrix(data=U,nrow=3)
+X = -log(U)
+X = (1/5)*apply(X,2,sum) #General transformation based on our parameters
+
+set.seed(123456)
+Y = rgamma(10000,3,5)
+
+plot(density(X), xlim=c(0,2), ylim=c(0,3) ,main="",xlab=NA)
+par(new = TRUE)
+plot(density(Y), xlim=c(0,2), ylim=c(0,3) ,main="",xlab=NA)
+```
+
+
+## Question 3
+
+```{r}
+set.seed(123456)
+
+u<-runif(1000000, 0, 1)
+y<-runif(1000000, 0, 2)
+x<-u[y<(3/10)*(-u^2+2*u+1)] #Takes into account the level 1.0 for the AR method
+
+
+n_draws <- 100000
+hist(sample(x,n_draws),breaks=100)
+
+```
+
+## Question 4
+
+```{r}
+set.seed(123456)
+
+n_draw <- 10000
+
+#Defining the prior
+prior_rate <- rbeta(n_draw,2,5)
+
+# Defining the generative model
+gen_modelA <- function(rate) {
+  conversions <-rbinom(1,size=50,prob = rate) 
+  conversions
+}
+gen_modelB <- function(rate) {
+  conversions <-rbinom(1,size=75,prob = rate) 
+  conversions
+}
+
+# Simulating the data
+conversionsA <- rep(NA, n_draw) 
+for(i in 1:n_draw) {
+  conversionsA[i] <- gen_modelA(prior_rate[i])
+}
+conversionsB <- rep(NA, n_draw)
+for(i in 1:n_draw) {
+  conversionsB[i] <- gen_modelB(prior_rate[i])
+}
+
+# Filtering out those parameter values that didn't result in the
+# data that we actually observed
+post_rateA <- prior_rate[conversionsA == 15] 
+post_rateB <- prior_rate[conversionsB == 25] 
+
+
+post_rate_diff<-rep(NA,length(post_rateB))
+for(i in 1:length(post_rateA)){
+  post_rate_diff[i]<-post_rateB[i]-post_rateA[i]
+}
+
+h <- hist(post_rate_diff, breaks = 10, plot=FALSE)
+h$counts=h$counts/sum(h$counts)
+plot(h, main="", ylab="Probability")
+
+```
+
