@@ -1,0 +1,5 @@
+Subway,23034,23850
+McDonald's,13980,14027
+Starbucks,11131,11131
+Pizza Hut,7566,7542
+Burger King,7250,7253
