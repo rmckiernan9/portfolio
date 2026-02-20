@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Name — Portfolio</title>
+    <style>
+      :root { --max: 980px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; color:#111; }
+      header { border-bottom: 1px solid #e5e5e5; }
+      nav { max-width: var(--max); margin: 0 auto; padding: 16px 20px; display:flex; justify-content:space-between; }
+      nav a { text-decoration:none; color:#111; font-weight:600; }
+      main { max-width: var(--max); margin: 0 auto; padding: 40px 20px; }
+      .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 18px; }
+      .card { border: 1px solid #e5e5e5; border-radius: 14px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+      .card h3 { margin: 0 0 6px; }
+      .card p { margin: 0 0 12px; color:#444; line-height: 1.45; }
+      .btn { display:inline-block; padding: 8px 10px; border-radius: 10px; text-decoration:none; font-size: 14px; margin-right: 8px; }
+      .primary { background:#111; color:#fff; }
+      .secondary { border:1px solid #ddd; color:#111; }
+      footer { border-top:1px solid #e5e5e5; margin-top: 40px; }
+      footer div { max-width: var(--max); margin:0 auto; padding: 18px 20px; color:#666; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="./">Your Name</a>
+        <a href="https://github.com/YOURUSER" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <h1>Portfolio</h1>
+      <p style="color:#444; line-height:1.6; max-width:70ch;">
+        I build analytics products and decision tools (forecasting, experimentation, dashboards).
+        Below are a few projects with code + live demos.
+      </p>
+
+      <h2 style="margin-top:28px;">Projects</h2>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Blackhawks Marketing Scenario Simulator</h3>
+          <p>Streamlit app to explore marketing spend levers and forecast deltas for upcoming games.</p>
+          <a class="btn primary" href="https://YOUR-APP.streamlit.app" target="_blank" rel="noopener">Launch app</a>
+          <a class="btn secondary" href="./projects/blackhawks.html">Details</a>
+        </div>
+
+        <div class="card">
+          <h3>Project #2</h3>
+          <p>Short description. Link to code folder in this repo or a separate repo.</p>
+          <a class="btn primary" href="https://github.com/YOURUSER/YOURREPO/tree/main/path-to-folder" target="_blank" rel="noopener">View code</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div>© <span id="y"></span> Your Name</div>
+    </footer>
+
+    <script>
+      document.getElementById("y").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
